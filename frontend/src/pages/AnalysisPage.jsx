@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AnalysisProgress from '../components/resume/AnalysisProgress.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
@@ -6,37 +6,42 @@ import { resumeService } from '../services/resumeService';
 import { useToast } from '../hooks/useToast';
 import { ROUTES, buildReportPath } from '../constants';
 
-/**
- * Shows a dedicated processing screen while the upload -> extract ->
- * analyze pipeline runs, then redirects to the finished report.
- * The file to analyze is passed via router state from UploadResumePage;
- * if it's missing (e.g. the page was refreshed directly), we show a
- * friendly error instead of crashing.
- */
 export default function AnalysisPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
+
   const [step, setStep] = useState(0);
   const [error, setError] = useState(null);
-  const hasStarted = useRef(false);
 
   const file = location.state?.file;
   const targetRole = location.state?.targetRole || '';
 
   useEffect(() => {
     if (!file) return;
-    if (hasStarted.current) return;
-    hasStarted.current = true;
 
     let isCancelled = false;
 
     async function runPipeline() {
       try {
+        console.log('STEP 1: Starting resume upload...');
+
         setStep(0);
+
         const uploadResult = await resumeService.upload(file);
 
         if (isCancelled) return;
+
+        console.log('STEP 2: Upload successful:', uploadResult);
+
+        if (!uploadResult?.fileName || !uploadResult?.extractedText) {
+          throw new Error('Resume text could not be extracted.');
+        }
+
+        setStep(1);
+
+        console.log('STEP 3: Starting AI analysis...');
+
         setStep(2);
 
         const report = await resumeService.analyze({
@@ -46,12 +51,29 @@ export default function AnalysisPage() {
         });
 
         if (isCancelled) return;
+
+        console.log('STEP 4: Analysis successful:', report);
+
+        if (!report?.id) {
+          throw new Error('Analysis completed but no report was returned.');
+        }
+
         setStep(3);
+
         toast.success('Your resume report is ready.');
-        navigate(buildReportPath(report.id), { replace: true });
+
+        navigate(buildReportPath(report.id), {
+          replace: true,
+        });
       } catch (err) {
         if (isCancelled) return;
-        setError(err.message || 'Resume analysis is temporarily unavailable. Please try again.');
+
+        console.error('PIPELINE ERROR:', err);
+
+        setError(
+          err?.message ||
+            'Resume analysis is temporarily unavailable. Please try again.'
+        );
       }
     }
 

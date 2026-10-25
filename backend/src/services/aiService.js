@@ -22,9 +22,10 @@ function buildPrompt(resumeText, targetRole) {
   const roleLine = targetRole
     ? `The candidate is targeting this role: "${targetRole}".`
     : 'No specific target role was provided; evaluate the resume generally.';
-
+  const currentDate = new Date().toISOString().split('T')[0];
   return `You are an expert ATS (Applicant Tracking System) resume reviewer.
 ${roleLine}
+Current date: ${currentDate}
 
 Analyze the resume text below and respond with ONLY a single valid JSON object
 (no markdown, no code fences, no commentary) matching exactly this shape:
@@ -40,6 +41,17 @@ Analyze the resume text below and respond with ONLY a single valid JSON object
   "sectionFeedback": [{ "section": string, "feedback": string }],
   "suggestions": string[]
 }
+
+IMPORTANT EVIDENCE AND DATE RULES:
+- Only report an issue when it is directly supported by the resume text.
+- Do not invent errors, chronology problems, missing information, or incorrect dates.
+- Treat dates exactly as written unless there is clear evidence of a contradiction.
+- Use the current date when judging whether a date is actually in the future.
+- Do NOT call a date a typo merely because it uses the current calendar year.
+- Do NOT recommend changing a year unless the resume itself provides convincing evidence that the year is incorrect.
+- If a date cannot be verified, state that it may need verification rather than prescribing a replacement year.
+- Do not describe a completed past date as future when the current date is later than that date.
+- Do not fabricate achievement metrics. When bullets are generic, recommend adding real measurable outcomes without inventing numbers.
 
 Resume text:
 """
