@@ -143,8 +143,20 @@ async function callGemini(prompt) {
   }
 
   if (!response.ok) {
-    throw new AppError('Resume analysis is temporarily unavailable. Please try again.', 503, 'AI_UNAVAILABLE');
-  }
+  const errorBody = await response.text();
+
+  console.error('[Gemini API Error]', {
+    status: response.status,
+    statusText: response.statusText,
+    body: errorBody.slice(0, 2000),
+  });
+
+  throw new AppError(
+    'Resume analysis is temporarily unavailable. Please try again.',
+    503,
+    'AI_UNAVAILABLE'
+  );
+}
 
   const payload = await response.json();
   const rawText = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
